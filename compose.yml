@@ -1,0 +1,59 @@
+version: "3.8"
+
+networks:
+  backend:
+  k6:
+
+services:
+  proxy:
+    container_name: aoai-proxy
+    build: ./src/proxy
+    ports:
+      - 8080:8080
+    environment:
+      - ReverseProxy__Clusters__cluster1__Destinations__destination1__Address=https://account-name.openai.azure.com/openai/deployments/deployment-1
+      - ReverseProxy__Clusters__cluster1__Destinations__destination2__Address=https://account-name.openai.azure.com/openai/deployments/deployment-2     - ReverseProxy__Clusters__cluster1__Destinations__deployment2__Address=https://gpt-four-open-ai.openai.azure.com/openai/deployments/chat-35-16k-2
+    networks:
+      - backend
+
+  k6:
+    image: grafana/k6:latest
+    networks:
+      - k6
+      - backend
+    ports:
+      - "6565:6565"
+    environment:
+      - PROXY_ENDPOINT=http://aoai-proxy:8080
+    env_file: .env
+    volumes:
+      - ./src/k6/:/scripts
+
+  prometheus:
+    image: prom/prometheus:v2.49.1
+    restart: always
+    ports:
+      - 9090:9090
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - --web.enable-remote-write-receiver
+      - --enable-feature=native-histograms
+      - --config.file=/etc/prometheus/prometheus.yml
+    networks:
+      - backend
+
+  grafana:
+    image: grafana/grafana:10.3.1
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_BASIC_ENABLED=false
+    networks:
+      - backend
+    depends_on:
+      - prometheus
+    volumes:
+      - ./config/grafana/:/etc/grafana/provisioning/
