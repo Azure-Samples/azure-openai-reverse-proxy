@@ -1,137 +1,147 @@
+using Microsoft.Extensions.Primitives;
+using Proxy.Exceptions;
 using Proxy.Models;
 using Yarp.ReverseProxy.Health;
 using Yarp.ReverseProxy.Model;
 
-namespace Proxy.Policies.HealthChecks;
-
-public class RateLimitPolicy(IDestinationHealthUpdater healthUpdater, 
-    ILogger<RateLimitPolicy> logger) : IPassiveHealthCheckPolicy
+namespace Proxy.Policies.HealthChecks
 {
-    public string Name => nameof(RateLimitPolicy);
-    private static readonly TimeSpan _defaultReactivationPeriod = TimeSpan.FromSeconds(6);
-
-    public const string HttpClientName = nameof(RateLimitPolicy);
-
-    public void RequestProxied(HttpContext context, ClusterState cluster, DestinationState destination)
+    public class RateLimitPolicy(IDestinationHealthUpdater healthUpdater,
+        ILogger<RateLimitPolicy> logger) : IPassiveHealthCheckPolicy
     {
-        DestinationHealth newHealthState = GetDestinationHealthState(context.Response, cluster.Model.Config.Metadata, destination.Model.Config.Address);
+        public string Name => nameof(RateLimitPolicy);
+        public const string HttpClientName = nameof(RateLimitPolicy);
 
-        TimeSpan reactivationPeriod = _defaultReactivationPeriod;
-        string? retryAfterHeader = context.Response.Headers.RetryAfter.ToString();
+        private static readonly TimeSpan _defaultReactivationPeriod = TimeSpan.FromSeconds(6);
 
-        if (double.TryParse(retryAfterHeader, out var retryAfterSeconds))
-            reactivationPeriod = TimeSpan.FromSeconds(retryAfterSeconds);
+        private static readonly Action<ILogger, int, int, Exception?> RemainingCapacity =
+            LoggerMessage.Define<int, int>(
+                LogLevel.Information,
+                new EventId(1, nameof(RemainingCapacity)),
+                "Remaining requests and tokens: {RemainingRequests}/{RemainingTokens}");
 
-        healthUpdater.SetPassive(cluster, destination, newHealthState, reactivationPeriod);
-    }
-
-    private DestinationHealth GetDestinationHealthState(
-        HttpResponse response, 
-        IReadOnlyDictionary<string, string>? clusterMetadata,
-        string destinationAddress)
-    {
-        string accountName = GetAccountNameFromDestination(destinationAddress);
-        string deploymentName = GetDeploymentNameFromDestination(destinationAddress);
-
-        if (response.StatusCode >= 400 && response.StatusCode <= 599)
+        public void RequestProxied(HttpContext context, ClusterState cluster, DestinationState destination)
         {
-            PrometheusMetrics.FailedHttpRequestsCounter
-                .WithLabels(accountName, deploymentName, response.StatusCode.ToString())
-                .Inc(1);
+            TimeSpan reactivationPeriod = GetReactivationPeriod(context.Response.Headers);
 
-            return DestinationHealth.Unhealthy;
-        }
-            
-        (int, int) thresholds = GetThresholdsFromMetadata(clusterMetadata);
-        (int, int) remainingCapacity = GetAzureOpenAIRemainingCapacity(response);
+            DestinationHealth newHealthState = GetDestinationHealthState(context.Response, cluster.Model.Config.Metadata, destination.Model.Config.Address);
 
-        PrometheusMetrics.RemainingRequestsGauge
-            .WithLabels(accountName, deploymentName)
-            .Set(remainingCapacity.Item1);
-
-        PrometheusMetrics.RemainingTokensGauge
-            .WithLabels(accountName, deploymentName)
-            .Set(remainingCapacity.Item2);
-
-        logger.LogInformation("Remaining requests and tokens: {}/{}", remainingCapacity.Item1, remainingCapacity.Item2);
-
-        bool isValidRemainingRequests = remainingCapacity.Item1 > thresholds.Item1;
-        bool isValidRemainingTokens = remainingCapacity.Item2 > thresholds.Item2;
-
-        return isValidRemainingRequests && isValidRemainingTokens
-            ? DestinationHealth.Healthy 
-            : DestinationHealth.Unhealthy;
-    }
-
-    private static (int, int) GetThresholdsFromMetadata(IReadOnlyDictionary<string, string>? clusterMetadata)
-    {
-        if (clusterMetadata == null || clusterMetadata.Count == 0)
-        {
-            throw new Exception("Cluster metadata cannot be null or empty.");
+            healthUpdater.SetPassive(cluster, destination, newHealthState, reactivationPeriod);
         }
 
-        if (!clusterMetadata.TryGetValue("RemainingRequestsThreshold", out var remainingRequestsThresholdValue))
+        private static TimeSpan GetReactivationPeriod(IHeaderDictionary responseHeaders)
         {
-            throw new Exception("Cluster 'RemainingRequestsThreshold' metadata parameter must be set.");
+            TimeSpan reactivationPeriod = _defaultReactivationPeriod;
+
+            string retryAfterHeader = responseHeaders.RetryAfter.ToString();
+
+            if (double.TryParse(retryAfterHeader, out double retryAfterSeconds))
+            {
+                reactivationPeriod = TimeSpan.FromSeconds(retryAfterSeconds);
+            }
+
+            return reactivationPeriod;
         }
 
-        if (!int.TryParse(remainingRequestsThresholdValue, out int remainingRequestsThreshold))
+        private DestinationHealth GetDestinationHealthState(
+            HttpResponse response,
+            IReadOnlyDictionary<string, string>? clusterMetadata,
+            string destinationAddress)
         {
-            throw new Exception("Cluster 'RemainingRequestsThreshold' metadata parameter value must be integer.");
+            string accountName = GetAccountNameFromDestination(destinationAddress);
+            string deploymentName = GetDeploymentNameFromDestination(destinationAddress);
+
+            if (response.StatusCode is >= 400 and <= 599)
+            {
+                PrometheusMetrics.FailedHttpRequestsCounter
+                    .WithLabels(accountName, deploymentName, $"{response.StatusCode}")
+                    .Inc(1);
+
+                return DestinationHealth.Unhealthy;
+            }
+
+            if (!ClusterHasMetadata(clusterMetadata))
+            {
+                return DestinationHealth.Healthy;
+            }
+
+            (int, int) thresholds = GetThresholdsFromMetadata(clusterMetadata);
+            (int, int) remainingCapacity = GetAzureOpenAIRemainingCapacity(response);
+
+            PrometheusMetrics.RemainingRequestsGauge
+                .WithLabels(accountName, deploymentName)
+                .Set(remainingCapacity.Item1);
+
+            PrometheusMetrics.RemainingTokensGauge
+                .WithLabels(accountName, deploymentName)
+                .Set(remainingCapacity.Item2);
+
+
+            RemainingCapacity(logger, remainingCapacity.Item1, remainingCapacity.Item2, null);
+
+            bool isValidRemainingRequests = remainingCapacity.Item1 > thresholds.Item1;
+            bool isValidRemainingTokens = remainingCapacity.Item2 > thresholds.Item2;
+
+            return isValidRemainingRequests && isValidRemainingTokens
+                ? DestinationHealth.Healthy
+                : DestinationHealth.Unhealthy;
         }
 
-        if (!clusterMetadata.TryGetValue("RemainingTokensThreshold", out var remainingTokensThresholdValue))
+        private static bool ClusterHasMetadata(IReadOnlyDictionary<string, string>? clusterMetadata)
         {
-            throw new Exception("Cluster 'RemainingTokensThreshold' metadata parameter must be set.");
+            return clusterMetadata != null
+              && (clusterMetadata.ContainsKey("RemainingRequestsThreshold") || clusterMetadata.ContainsKey("remainingTokensThreshold"));
         }
 
-        if (!int.TryParse(remainingTokensThresholdValue, out int remainingTokensThreshold))
+        private static (int, int) GetThresholdsFromMetadata(IReadOnlyDictionary<string, string>? clusterMetadata)
         {
-            throw new Exception("Cluster 'RemainingTokensThreshold' metadata parameter value must be integer.");
+            return clusterMetadata == null || clusterMetadata.Count == 0
+                ? throw new ArgumentException("Cluster metadata cannot be null or empty.")
+                : !clusterMetadata.TryGetValue("RemainingRequestsThreshold", out string? remainingRequestsThresholdValue)
+                ? throw new ArgumentException("Cluster 'RemainingRequestsThreshold' metadata parameter must be set.")
+                : !int.TryParse(remainingRequestsThresholdValue, out int remainingRequestsThreshold)
+                ? throw new ArgumentException("Cluster 'RemainingRequestsThreshold' metadata parameter value must be integer.")
+                : !clusterMetadata.TryGetValue("RemainingTokensThreshold", out string? remainingTokensThresholdValue)
+                ? throw new ArgumentException("Cluster 'RemainingTokensThreshold' metadata parameter must be set.")
+                : !int.TryParse(remainingTokensThresholdValue, out int remainingTokensThreshold)
+                ? throw new ArgumentException("Cluster 'RemainingTokensThreshold' metadata parameter value must be integer.")
+                : ((int, int))(remainingRequestsThreshold, remainingTokensThreshold);
         }
 
-        return (remainingRequestsThreshold, remainingTokensThreshold);
-    }
-
-    private static (int, int) GetAzureOpenAIRemainingCapacity(HttpResponse response)
-    {
-        if (!response.Headers.TryGetValue("x-ratelimit-remaining-requests", out var remainingRequestsValue))
+        private static (int, int) GetAzureOpenAIRemainingCapacity(HttpResponse response)
         {
-            throw new Exception("Could not collect the Azure OpenAI x-ratelimit-remaining-requests header attribute.");
+            if (!response.Headers.TryGetValue("x-ratelimit-remaining-requests", out StringValues remainingRequestsValue))
+            {
+                throw new MissingHeaderException("Could not collect the Azure OpenAI x-ratelimit-remaining-requests header attribute.");
+            }
+
+            if (!int.TryParse(remainingRequestsValue, out int remainingRequests))
+            {
+                throw new MissingHeaderException("The Azure OpenAI x-ratelimit-remaining-requests header value is not integer.");
+            }
+
+            // Requests limit is returned by 10s, so we need to convert to requests/min
+            remainingRequests *= 6;
+
+            return !response.Headers.TryGetValue("x-ratelimit-remaining-tokens", out StringValues remainingTokensValue)
+                ? throw new MissingHeaderException("Could not collect the Azure OpenAI x-ratelimit-remaining-tokens header attribute.")
+                : !int.TryParse(remainingTokensValue, out int remainingTokens)
+                ? throw new MissingHeaderException("The Azure OpenAI x-ratelimit-remaining-tokens header value is not integer.")
+                : ((int, int))(remainingRequests, remainingTokens);
         }
 
-        if (!int.TryParse(remainingRequestsValue, out int remainingRequests))
+        private static string GetDeploymentNameFromDestination(string destinationAddress)
         {
-            throw new Exception("The Azure OpenAI x-ratelimit-remaining-requests header value is not integer.");
+            Uri uri = new(destinationAddress);
+
+            string[] pathSegments = uri.AbsolutePath.Trim('/').Split('/');
+            return pathSegments[^1].Replace('-', '_');
         }
 
-        // Requests limit is returned by 10s, so we need to convert to requests/min
-        remainingRequests *= 6;
-
-        if (!response.Headers.TryGetValue("x-ratelimit-remaining-tokens", out var remainingTokensValue))
+        private static string GetAccountNameFromDestination(string destinationAddress)
         {
-            throw new Exception("Could not collect the Azure OpenAI x-ratelimit-remaining-tokens header attribute.");
+            Uri uri = new(destinationAddress);
+            return uri.Host.Split('.')[0].Replace('-', '_');
         }
-
-        if (!int.TryParse(remainingTokensValue, out int remainingTokens))
-        {
-            throw new Exception("The Azure OpenAI x-ratelimit-remaining-tokens header value is not integer.");
-        }
-
-        return (remainingRequests, remainingTokens);
-    }
-
-    private static string GetDeploymentNameFromDestination(string destinationAddress)
-    {
-        Uri uri = new(destinationAddress);
-
-        string[] pathSegments = uri.AbsolutePath.Trim('/').Split('/');
-        return pathSegments[^1].Replace('-', '_');
-    }
-
-    private static string GetAccountNameFromDestination(string destinationAddress)
-    {
-        Uri uri = new(destinationAddress);
-        return uri.Host.Split('.')[0].Replace('-', '_');
     }
 }
