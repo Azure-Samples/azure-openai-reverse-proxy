@@ -1,16 +1,17 @@
 using Microsoft.Extensions.Primitives;
-using Proxy.Exceptions;
+using Proxy.Customizations.Exceptions;
 using Proxy.Models;
 using Yarp.ReverseProxy.Health;
 using Yarp.ReverseProxy.Model;
 
-namespace Proxy.Policies.HealthChecks
+namespace Proxy.Customizations
 {
-    public class RateLimitPolicy(IDestinationHealthUpdater healthUpdater,
-        ILogger<RateLimitPolicy> logger) : IPassiveHealthCheckPolicy
+    public class AzureOpenAIPassiveHealthCheckPolicy(
+        IDestinationHealthUpdater healthUpdater,
+        ILogger<AzureOpenAIPassiveHealthCheckPolicy> logger) : IPassiveHealthCheckPolicy
     {
-        public string Name => nameof(RateLimitPolicy);
-        public const string HttpClientName = nameof(RateLimitPolicy);
+        public string Name => nameof(AzureOpenAIPassiveHealthCheckPolicy);
+        public const string HttpClientName = nameof(AzureOpenAIPassiveHealthCheckPolicy);
 
         private static readonly TimeSpan _defaultReactivationPeriod = TimeSpan.FromSeconds(6);
 

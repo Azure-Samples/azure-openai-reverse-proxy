@@ -1,5 +1,5 @@
 using Prometheus;
-using Proxy.Policies.HealthChecks;
+using Proxy.Customizations;
 using Yarp.ReverseProxy.Health;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -7,10 +7,10 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services.AddReverseProxy()
                 .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
-builder.Services.AddSingleton<IPassiveHealthCheckPolicy, RateLimitPolicy>();
+builder.Services.AddSingleton<IPassiveHealthCheckPolicy, AzureOpenAIPassiveHealthCheckPolicy>();
 
 // Define an HTTP client that reports metrics about its usage
-builder.Services.AddHttpClient(RateLimitPolicy.HttpClientName);
+builder.Services.AddHttpClient(AzureOpenAIPassiveHealthCheckPolicy.HttpClientName);
 
 // Export metrics from all HTTP clients registered in services
 builder.Services.UseHttpClientMetrics();
