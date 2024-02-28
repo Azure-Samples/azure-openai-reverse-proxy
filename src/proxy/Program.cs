@@ -7,7 +7,6 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services.AddReverseProxy()
                 .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
-builder.Services.AddSingleton<IPassiveHealthCheckPolicy, TooManyRequestsPolicy>();
 builder.Services.AddSingleton<IPassiveHealthCheckPolicy, RateLimitPolicy>();
 
 // Define an HTTP client that reports metrics about its usage
