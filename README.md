@@ -11,6 +11,9 @@ A [reverse proxy](https://en.wikipedia.org/wiki/Reverse_proxy) for distributing 
 
 - [Problem statement](#problem-statement)
 - [Solution](#solution)
+  - [Core features](#core-features)
+  - [Passive Health Check](#passive-health-check)
+- [Proxy configuration](#proxy-configuration)
 - [Trying it out](#trying-it-out)
   - [Prerequisites](#prerequisites)
   - [Configuring the services](#configuring-the-services)
@@ -22,8 +25,8 @@ A [reverse proxy](https://en.wikipedia.org/wiki/Reverse_proxy) for distributing 
 
 An Azure OpenAI deployment model throttling is designed taking into consideration two configurable rate limits:
 
-- `Tokens-per-minute (TPM)`: max number of estimated tokens to be processed over a one-minute period
-- `Requests-per-minute (RPM)`: max number of requests over a one-minute period
+- `Tokens-per-minute (TPM)`: Estimated number of tokens that can processed over a one-minute period
+- `Requests-per-minute (RPM)`: Estimated number of requests over a one-minute period
 
 A deployment model is considered overloaded when _at least_ one of these rate limits is reached, and Azure OpenAI returns an HTTP 429 ("Too Many Requests") response code to the client with a "Retry-After" HTTP header indicating how many seconds the deployment model will be unavailable before starting to accept more requests.
 
@@ -41,10 +44,21 @@ These approaches can be combined to achieve enhanced scalability, performance an
 
 ## Solution
 
-This repository showcases a proof-of-concept solution for the alternative #2: A reverse proxy built in ASP.NET Core with [YARP](https://microsoft.github.io/reverse-proxy/articles/getting-started.html). The proxy is designed for:
+This repository showcases a proof-of-concept solution for the alternative #2: A reverse proxy built in ASP.NET Core with [YARP](https://microsoft.github.io/reverse-proxy/articles/getting-started.html).
 
-- Leveraging YARP's built-in [load balancing algorithms](https://microsoft.github.io/reverse-proxy/articles/load-balancing.html#built-in-policies). Easily experiment different load balancing approaches by setting the `LoadBalancingPolicy` value on the app settings file.
-- Passively watches for successes and failures in client requests to [Azure OpenAI Service REST API](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference) endpoints to reactively evaluate and assign health states to model deployments.
+### Core features
+
+- YARP's built-in [load balancing algorithms](https://microsoft.github.io/reverse-proxy/articles/load-balancing.html#built-in-policies).
+
+* Custom [passive health check](https://microsoft.github.io/reverse-proxy/articles/dests-health-checks.html#passive-health-checks) to reactively evaluate and assign states for Azure OpenAI model deployments. For more info, check out the [Passive Health Check](#passive-health-check) section.
+
+### Passive Health Check
+
+> WIP
+
+## Proxy configuration
+
+> WIP
 
 ## Trying it out
 
