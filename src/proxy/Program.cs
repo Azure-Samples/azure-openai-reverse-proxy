@@ -1,10 +1,12 @@
 using Prometheus;
 using Proxy.Customizations;
+using Proxy.Transformers;
 using Yarp.ReverseProxy.Health;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddReverseProxy()
+                .AddTransforms(AbsoluteUriResponseTransformer.Transform)
                 .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
 builder.Services.AddSingleton<IPassiveHealthCheckPolicy, AzureOpenAIPassiveHealthCheckPolicy>();
