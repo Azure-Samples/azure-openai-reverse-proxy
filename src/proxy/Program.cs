@@ -18,16 +18,12 @@ builder.Services.AddHttpClient(AzureOpenAIPassiveHealthCheckPolicy.HttpClientNam
 // Export metrics from all HTTP clients registered in services
 builder.Services.UseHttpClientMetrics();
 
+builder.Services.AddPrometheusServices();
+
 WebApplication app = builder.Build();
 
 app.MapReverseProxy();
 
-// Add middleware to handle scraping requests for metrics
-app.UseHttpMetrics();
-
-// Enable the /metrics page to export Prometheus metrics
-app.MapMetrics();
-
-app.UsePrometheusPublisherMiddleware();
+app.UsePrometheusMetrics();
 
 app.Run();

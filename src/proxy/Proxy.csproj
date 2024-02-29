@@ -13,6 +13,12 @@
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.19.6" /> 
     <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
     <PackageReference Include="Yarp.ReverseProxy" Version="2.1.0" />
-   </ItemGroup> 
+   </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="appsettings.Local.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup> 
 
 </Project>
