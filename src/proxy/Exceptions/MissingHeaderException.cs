@@ -1,4 +1,4 @@
-namespace Proxy.Customizations.Exceptions
+namespace Proxy.Exceptions
 {
     public class MissingHeaderException : Exception
     {
