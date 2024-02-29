@@ -13,12 +13,6 @@ namespace Proxy.Customizations
 
         private static readonly TimeSpan _defaultReactivationPeriod = TimeSpan.FromSeconds(6);
 
-        private static readonly Action<ILogger, int, int, Exception?> RemainingCapacity =
-            LoggerMessage.Define<int, int>(
-                LogLevel.Information,
-                new EventId(1, nameof(RemainingCapacity)),
-                "Remaining requests and tokens: {RemainingRequests}/{RemainingTokens}");
-
         public void RequestProxied(HttpContext context, ClusterState cluster, DestinationState destination)
         {
             TimeSpan reactivationPeriod = GetReactivationPeriod(context.Response.Headers);
@@ -59,7 +53,7 @@ namespace Proxy.Customizations
             (int, int) thresholds = GetThresholdsFromMetadata(clusterMetadata);
             (int, int) remainingCapacity = OpenAIRemainingCapacityParser.GetAzureOpenAIRemainingCapacity(response);
 
-            RemainingCapacity(logger, remainingCapacity.Item1, remainingCapacity.Item2, null);
+            logger.RemainingCapacity(remainingCapacity.Item1, remainingCapacity.Item2);
 
             bool isValidRemainingRequests = remainingCapacity.Item1 > thresholds.Item1;
             bool isValidRemainingTokens = remainingCapacity.Item2 > thresholds.Item2;
@@ -89,5 +83,15 @@ namespace Proxy.Customizations
                 ? throw new ArgumentException("Cluster 'RemainingTokensThreshold' metadata parameter value must be integer.")
                 : ((int, int))(remainingRequestsThreshold, remainingTokensThreshold);
         }
+    }
+
+    internal static partial class Log
+    {
+        [LoggerMessage(
+            EventId = 1,
+            EventName = nameof(RemainingCapacity),
+            Level = LogLevel.Information,
+            Message = "Remaining requests and tokens: {remainingRequests}/{remainingTokens}")]
+        public static partial void RemainingCapacity(this ILogger logger, int remainingRequests, int remainingTokens);
     }
 }
