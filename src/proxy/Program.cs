@@ -1,5 +1,6 @@
 using Prometheus;
 using Proxy.Customizations;
+using Proxy.Telemetry;
 using Proxy.Transformers;
 using Yarp.ReverseProxy.Health;
 
@@ -26,5 +27,7 @@ app.UseHttpMetrics();
 
 // Enable the /metrics page to export Prometheus metrics
 app.MapMetrics();
+
+app.UsePrometheusPublisherMiddleware();
 
 app.Run();

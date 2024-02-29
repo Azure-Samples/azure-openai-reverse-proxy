@@ -1,6 +1,4 @@
-using Microsoft.Extensions.Primitives;
-using Proxy.Customizations.Exceptions;
-using Proxy.Models;
+using Proxy.OpenAI;
 using Yarp.ReverseProxy.Health;
 using Yarp.ReverseProxy.Model;
 
@@ -25,7 +23,7 @@ namespace Proxy.Customizations
         {
             TimeSpan reactivationPeriod = GetReactivationPeriod(context.Response.Headers);
 
-            DestinationHealth newHealthState = GetDestinationHealthState(context.Response, cluster.Model.Config.Metadata, destination.Model.Config.Address);
+            DestinationHealth newHealthState = GetDestinationHealthState(context.Response, cluster.Model.Config.Metadata);
 
             healthUpdater.SetPassive(cluster, destination, newHealthState, reactivationPeriod);
         }
@@ -46,18 +44,10 @@ namespace Proxy.Customizations
 
         private DestinationHealth GetDestinationHealthState(
             HttpResponse response,
-            IReadOnlyDictionary<string, string>? clusterMetadata,
-            string destinationAddress)
+            IReadOnlyDictionary<string, string>? clusterMetadata)
         {
-            string accountName = GetAccountNameFromDestination(destinationAddress);
-            string deploymentName = GetDeploymentNameFromDestination(destinationAddress);
-
             if (response.StatusCode is >= 400 and <= 599)
             {
-                PrometheusMetrics.FailedHttpRequestsCounter
-                    .WithLabels(accountName, deploymentName, $"{response.StatusCode}")
-                    .Inc(1);
-
                 return DestinationHealth.Unhealthy;
             }
 
@@ -67,16 +57,7 @@ namespace Proxy.Customizations
             }
 
             (int, int) thresholds = GetThresholdsFromMetadata(clusterMetadata);
-            (int, int) remainingCapacity = GetAzureOpenAIRemainingCapacity(response);
-
-            PrometheusMetrics.RemainingRequestsGauge
-                .WithLabels(accountName, deploymentName)
-                .Set(remainingCapacity.Item1);
-
-            PrometheusMetrics.RemainingTokensGauge
-                .WithLabels(accountName, deploymentName)
-                .Set(remainingCapacity.Item2);
-
+            (int, int) remainingCapacity = OpenAIRemainingCapacityParser.GetAzureOpenAIRemainingCapacity(response);
 
             RemainingCapacity(logger, remainingCapacity.Item1, remainingCapacity.Item2, null);
 
@@ -107,42 +88,6 @@ namespace Proxy.Customizations
                 : !int.TryParse(remainingTokensThresholdValue, out int remainingTokensThreshold)
                 ? throw new ArgumentException("Cluster 'RemainingTokensThreshold' metadata parameter value must be integer.")
                 : ((int, int))(remainingRequestsThreshold, remainingTokensThreshold);
-        }
-
-        private static (int, int) GetAzureOpenAIRemainingCapacity(HttpResponse response)
-        {
-            if (!response.Headers.TryGetValue("x-ratelimit-remaining-requests", out StringValues remainingRequestsValue))
-            {
-                throw new MissingHeaderException("Could not collect the Azure OpenAI x-ratelimit-remaining-requests header attribute.");
-            }
-
-            if (!int.TryParse(remainingRequestsValue, out int remainingRequests))
-            {
-                throw new MissingHeaderException("The Azure OpenAI x-ratelimit-remaining-requests header value is not integer.");
-            }
-
-            // Requests limit is returned by 10s, so we need to convert to requests/min
-            remainingRequests *= 6;
-
-            return !response.Headers.TryGetValue("x-ratelimit-remaining-tokens", out StringValues remainingTokensValue)
-                ? throw new MissingHeaderException("Could not collect the Azure OpenAI x-ratelimit-remaining-tokens header attribute.")
-                : !int.TryParse(remainingTokensValue, out int remainingTokens)
-                ? throw new MissingHeaderException("The Azure OpenAI x-ratelimit-remaining-tokens header value is not integer.")
-                : ((int, int))(remainingRequests, remainingTokens);
-        }
-
-        private static string GetDeploymentNameFromDestination(string destinationAddress)
-        {
-            Uri uri = new(destinationAddress);
-
-            string[] pathSegments = uri.AbsolutePath.Trim('/').Split('/');
-            return pathSegments[^1].Replace('-', '_');
-        }
-
-        private static string GetAccountNameFromDestination(string destinationAddress)
-        {
-            Uri uri = new(destinationAddress);
-            return uri.Host.Split('.')[0].Replace('-', '_');
         }
     }
 }
