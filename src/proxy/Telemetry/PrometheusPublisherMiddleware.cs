@@ -17,7 +17,7 @@ public class PrometheusPublisherMiddleware(RequestDelegate next)
         if (context.Response.Headers.TryGetValue(AbsoluteUriResponseTransformer.AbsoluteUriHeaderKey, out var values))
         {
             string destinationAddress = values.ToString();
-
+    
             (string accountName, string deploymentName) = GetResourceDetailsFromDestination(cache, destinationAddress);
 
             if (context.Response.StatusCode is >= 400 and <= 599)
@@ -50,8 +50,15 @@ public class PrometheusPublisherMiddleware(RequestDelegate next)
 
         string accountName = uri.Host.Split('.')[0].Replace('-', '_');
 
-        string[] pathSegments = uri.AbsolutePath.Trim('/').Split('/');
-        string deploymentName = pathSegments[^1].Replace('-', '_');
+        string[] segments = uri.Segments;
+        int deploymentIndex = Array.IndexOf(segments, "deployments/");
+
+        if (deploymentIndex == -1 || deploymentIndex >= segments.Length - 1)
+        {
+            throw new UriFormatException("Deployment name not found in the destination URL.");
+        }
+
+        string deploymentName = segments[deploymentIndex + 1].TrimEnd('/').Replace('-', '_');
 
         return cache.Set(destinationAddress, new ResourceDetails()
         {
