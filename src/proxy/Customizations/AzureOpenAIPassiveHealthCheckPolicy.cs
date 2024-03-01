@@ -50,13 +50,13 @@ namespace Proxy.Customizations
                 return DestinationHealth.Healthy;
             }
 
-            (int, int) thresholds = GetThresholdsFromMetadata(clusterMetadata);
-            (int, int) remainingCapacity = OpenAIRemainingCapacityParser.GetAzureOpenAIRemainingCapacity(response);
+            (int requestsThreshold, int tokensThreshold) = GetThresholdsFromMetadata(clusterMetadata);
+            (int remainingRequests, int remainingTokens) = OpenAIRemainingCapacityParser.GetAzureOpenAIRemainingCapacity(response);
 
-            logger.RemainingCapacity(remainingCapacity.Item1, remainingCapacity.Item2);
+            logger.RemainingCapacity(remainingRequests, remainingTokens);
 
-            bool isValidRemainingRequests = remainingCapacity.Item1 > thresholds.Item1;
-            bool isValidRemainingTokens = remainingCapacity.Item2 > thresholds.Item2;
+            bool isValidRemainingRequests = remainingRequests > requestsThreshold;
+            bool isValidRemainingTokens = remainingTokens > tokensThreshold;
 
             return isValidRemainingRequests && isValidRemainingTokens
                 ? DestinationHealth.Healthy
