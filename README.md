@@ -16,7 +16,8 @@ A [reverse proxy](https://en.wikipedia.org/wiki/Reverse_proxy) for distributing 
 - [Proxy configuration](#proxy-configuration)
 - [Trying it out](#trying-it-out)
   - [Prerequisites](#prerequisites)
-  - [Configuring the services](#configuring-the-services)
+  - [App settings setup](#app-settings-setup)
+  - [Running the solution](#running-the-solution)
   - [Testing the proxy](#testing-the-proxy)
   - [Environment teardown](#environment-teardown)
 - [References](#references)
@@ -71,16 +72,23 @@ The repository provides the following containerized services out of the box to s
 - An Azure OpenAI Service with 2 or more model deployments. For more information about model deployment, see the [resource deployment guide](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/create-resource?pivots=web-portal).
 - [Docker](https://docs.docker.com/get-docker/), or [Podman](https://podman.io/docs/installation) with [podman-compose](https://github.com/containers/podman-compose).
 
-### Configuring the services
+### App settings setup
 
-1. Open the Docker compose file (`compose.yml`), then update the AOAI account name and deployment names in the `proxy` service.
+1. First, create an `appsettings.Local.json` file on `src/proxy` from the provided template file `appsettings.Template.json` and change the values to match your Azure OpenAI model deployments:
 
-   ```
-   - ReverseProxy__Clusters__cluster1__Destinations__destination1__Address=https://account-name.openai.azure.com/openai/deployments/deployment-1
-   - ReverseProxy__Clusters__cluster1__Destinations__destination2__Address=https://account-name.openai.azure.com/openai/deployments/deployment-2
-   ```
+```
+"Destinations": {
+    "deployment1": {
+      "Address": "https://account-name.openai.azure.com/openai/deployments/deployment-1"
+    },
+    "deployment2": {
+      "Address": "https:///account-name.openai.azure.com/openai/deployments/deployment-2"
+    }
+  }
+}
+```
 
-2. Create a `.env` file and add the Azure OpenAI API key:
+2. Create a `.env` file on the root directory and add the Azure OpenAI API key:
 
    ```
    AZURE_OPENAI_API_KEY=<api-key>
@@ -88,11 +96,13 @@ The repository provides the following containerized services out of the box to s
 
    > The `PROXY_ENDPOINT` environment variable is set by default on the `compose.yml` file.
 
-3. Spin services up with Docker compose:
+### Running the solution
 
-   ```sh
-   docker-compose up
-   ```
+Spin services up with Docker compose:
+
+```sh
+docker-compose up
+```
 
 > [!IMPORTANT]
 > For any code changes, make sure you build the image again before running using the `--build` flag:` docker-compose up --build`
