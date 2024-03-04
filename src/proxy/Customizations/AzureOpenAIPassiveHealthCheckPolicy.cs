@@ -66,7 +66,8 @@ namespace Proxy.Customizations
         private static bool ClusterHasMetadata(IReadOnlyDictionary<string, string>? clusterMetadata)
         {
             return clusterMetadata != null
-              && (clusterMetadata.ContainsKey("RemainingRequestsThreshold") || clusterMetadata.ContainsKey("remainingTokensThreshold"));
+              && (clusterMetadata.ContainsKey("RemainingRequestsThreshold")
+                  || clusterMetadata.ContainsKey("remainingTokensThreshold"));
         }
 
         private static (int, int) GetThresholdsFromMetadata(IReadOnlyDictionary<string, string>? clusterMetadata)
