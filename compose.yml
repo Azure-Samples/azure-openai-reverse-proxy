@@ -11,8 +11,7 @@ services:
     ports:
       - 8080:8080
     environment:
-      - ReverseProxy__Clusters__cluster1__Destinations__destination1__Address=https://account-name.openai.azure.com/openai/deployments/deployment-1
-      - ReverseProxy__Clusters__cluster1__Destinations__destination2__Address=https://account-name.openai.azure.com/openai/deployments/deployment-2     - ReverseProxy__Clusters__cluster1__Destinations__deployment2__Address=https://gpt-four-open-ai.openai.azure.com/openai/deployments/chat-35-16k-2
+      - ASPNETCORE_ENVIRONMENT=Local
     networks:
       - backend
 
