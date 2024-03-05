@@ -3,12 +3,29 @@ using Proxy.Customizations;
 using Proxy.Telemetry;
 using Proxy.Transformers;
 using Yarp.ReverseProxy.Health;
+using Proxy.ServiceDiscovery.RouteUpdates;
+using Proxy.ServiceDiscovery;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+IReverseProxyBuilder proxyBuilder = builder.Services.AddReverseProxy();
 
-builder.Services.AddReverseProxy()
-                .AddTransforms(AbsoluteUriResponseTransformer.Transform)
-                .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
+proxyBuilder.AddTransforms(AbsoluteUriResponseTransformer.Transform);
+
+IConfigurationSection modelDeploymentsDiscovery = builder.Configuration.GetSection("ModelDeploymentsDiscovery");
+
+if (modelDeploymentsDiscovery != null)
+{
+    _ = builder.Services.AddSingleton<RouteUpdateChannelProvider>();
+    _ = builder.Services.AddHostedService<RouteUpdateWorker>();
+    _ = builder.Services.AddHostedService<AzureOpenAIModelDeploymentsDiscoveryWorker>()
+      .Configure<AzureOpenAIModelDeploymentsDiscoveryWorkerOptions>(modelDeploymentsDiscovery);
+
+    _ = proxyBuilder.LoadFromMemory([], []);
+}
+else
+{
+    _ = proxyBuilder.LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
+}
 
 builder.Services.AddSingleton<IPassiveHealthCheckPolicy, AzureOpenAIPassiveHealthCheckPolicy>();
 
