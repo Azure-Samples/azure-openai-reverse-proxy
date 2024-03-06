@@ -116,6 +116,11 @@ The repository provides the following ways of sending HTTP requests to Azure Ope
    ```
    ./scripts/client.sh
    ```
+    or via powershell
+
+    ```
+    .\scripts\client.ps1
+    ```
 
 2. Concurrent requests via `k6`, a load testing tool:
 
