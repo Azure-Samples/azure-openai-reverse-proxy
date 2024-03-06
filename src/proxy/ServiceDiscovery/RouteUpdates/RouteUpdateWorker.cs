@@ -1,17 +1,19 @@
 using System.Diagnostics;
 using System.Threading.Channels;
+using Microsoft.Extensions.Options;
 using Proxy.Customizations;
 using Yarp.ReverseProxy.Configuration;
-using Yarp.ReverseProxy.LoadBalancing;
 
 namespace Proxy.ServiceDiscovery.RouteUpdates
 {
     internal sealed class RouteUpdateWorker(
         RouteUpdateChannelProvider channelProvider,
+        IOptions<AzureOpenAIModelDeploymentsDiscoveryWorkerOptions> options,
         InMemoryConfigProvider proxyConfig) : BackgroundService
     {
         private readonly ChannelReader<RouteUpdate> channel = channelProvider.ChannelReader;
         private readonly InMemoryConfigProvider proxyConfig = proxyConfig;
+        private readonly AzureOpenAIModelDeploymentsDiscoveryWorkerOptions options = options.Value;
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -59,7 +61,7 @@ namespace Proxy.ServiceDiscovery.RouteUpdates
             })];
         }
 
-        private static ClusterConfig[] GetInitialClusters(string clusterId = "default")
+        private ClusterConfig[] GetInitialClusters(string clusterId = "default")
         {
             return
             [
@@ -67,7 +69,7 @@ namespace Proxy.ServiceDiscovery.RouteUpdates
                 {
                     ClusterId = clusterId,
                     Destinations = null,
-                    LoadBalancingPolicy = LoadBalancingPolicies.RoundRobin,
+                    LoadBalancingPolicy = options.LoadBalancingPolicy,
                     HealthCheck = new HealthCheckConfig()
                     {
                         Passive = new PassiveHealthCheckConfig()

@@ -19,6 +19,7 @@ namespace Proxy.ServiceDiscovery
         public string AccountId { get; init; } = string.Empty;
         public string FilterPattern { get; set; } = "gpt-*";
         public int FrequencySeconds { get; set; } = 10;
+        public string LoadBalancingPolicy { get; set; } = "RoundRobin";
     }
 
     internal sealed class AzureOpenAIModelDeploymentsDiscoveryWorker(

@@ -8,7 +8,7 @@ namespace Proxy.Customizations
         IDestinationHealthUpdater healthUpdater,
         ILogger<AzureOpenAIPassiveHealthCheckPolicy> logger) : IPassiveHealthCheckPolicy
     {
-        public const string PolicyName = nameof(AzureOpenAIPassiveHealthCheckPolicy); 
+        public const string PolicyName = nameof(AzureOpenAIPassiveHealthCheckPolicy);
         public string Name => PolicyName;
         public const string HttpClientName = nameof(AzureOpenAIPassiveHealthCheckPolicy);
 
@@ -16,9 +16,8 @@ namespace Proxy.Customizations
 
         public void RequestProxied(HttpContext context, ClusterState cluster, DestinationState destination)
         {
-            TimeSpan reactivationPeriod = GetReactivationPeriod(context.Response.Headers);
-
             DestinationHealth newHealthState = GetDestinationHealthState(context.Response, cluster.Model.Config.Metadata);
+            TimeSpan reactivationPeriod = GetReactivationPeriod(context.Response.Headers);
 
             healthUpdater.SetPassive(cluster, destination, newHealthState, reactivationPeriod);
         }
