@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Threading.Channels;
 using Microsoft.Extensions.Options;
-using Proxy.Customizations;
 using Yarp.ReverseProxy.Configuration;
 
 namespace Proxy.ServiceDiscovery.RouteUpdates
@@ -63,8 +62,24 @@ namespace Proxy.ServiceDiscovery.RouteUpdates
 
         private ClusterConfig[] GetInitialClusters(string clusterId = "default")
         {
-            return
-            [
+            Dictionary<string, string> clusterMetadata = [];
+
+            if (options.PassiveHealthCheck.Metadata != null)
+            {
+                if (options.PassiveHealthCheck.Metadata.RemainingRequestsThreshold != null)
+                {
+                    clusterMetadata.Add(nameof(options.PassiveHealthCheck.Metadata.RemainingRequestsThreshold),
+                        options.PassiveHealthCheck.Metadata.RemainingRequestsThreshold);
+                }
+
+                if (options.PassiveHealthCheck.Metadata.RemainingTokensThreshold != null)
+                {
+                    clusterMetadata.Add(nameof(options.PassiveHealthCheck.Metadata.RemainingTokensThreshold),
+                        options.PassiveHealthCheck.Metadata.RemainingTokensThreshold);
+                }
+            }
+
+            return [
                 new ClusterConfig()
                 {
                     ClusterId = clusterId,
@@ -75,14 +90,18 @@ namespace Proxy.ServiceDiscovery.RouteUpdates
                         Passive = new PassiveHealthCheckConfig()
                         {
                             Enabled = true,
-                            Policy = AzureOpenAIPassiveHealthCheckPolicy.PolicyName,
+                            Policy = options.PassiveHealthCheck.Policy,
                         }
-                    }
+                    },
+                    Metadata = clusterMetadata
                 }
             ];
         }
 
-        private static ClusterConfig[] UpdateClusterDestination(ClusterConfig[] clusters, IReadOnlyDictionary<string, DestinationConfig>? destinations, string clusterId = "default")
+        private static ClusterConfig[] UpdateClusterDestination(
+            ClusterConfig[] clusters,
+            IReadOnlyDictionary<string, DestinationConfig>? destinations,
+            string clusterId = "default")
         {
             int i = Array.FindIndex(clusters, c => c.ClusterId == clusterId);
             Debug.Assert(i >= 0);

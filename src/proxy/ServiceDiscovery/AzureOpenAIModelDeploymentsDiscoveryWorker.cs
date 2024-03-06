@@ -7,19 +7,34 @@ using Azure.ResourceManager;
 using Azure.ResourceManager.CognitiveServices;
 using Azure.ResourceManager.CognitiveServices.Models;
 using Microsoft.Extensions.Options;
+using Proxy.Customizations;
 using Proxy.ServiceDiscovery.RouteUpdates;
 using Yarp.ReverseProxy.Configuration;
 
 namespace Proxy.ServiceDiscovery
 {
+    internal sealed class PassiveHealthCheckMetadataOptions
+    {
+        public string? RemainingRequestsThreshold { get; init; }
+        public string? RemainingTokensThreshold { get; init; }
+    }
+
+    internal sealed class PassiveHealthCheckOptions
+    {
+        public string Policy { get; init; } = AzureOpenAIPassiveHealthCheckPolicy.PolicyName;
+        public PassiveHealthCheckMetadataOptions? Metadata { get; init; }
+
+    }
+
     internal sealed class AzureOpenAIModelDeploymentsDiscoveryWorkerOptions
     {
         public string SubscriptionId { get; init; } = string.Empty;
         public string ResourceGroupName { get; init; } = string.Empty;
         public string AccountId { get; init; } = string.Empty;
-        public string FilterPattern { get; set; } = "gpt-*";
-        public int FrequencySeconds { get; set; } = 10;
-        public string LoadBalancingPolicy { get; set; } = "RoundRobin";
+        public string FilterPattern { get; init; } = "gpt-*";
+        public int FrequencySeconds { get; init; } = 10;
+        public string LoadBalancingPolicy { get; init; } = "RoundRobin";
+        public PassiveHealthCheckOptions PassiveHealthCheck { get; init; } = new PassiveHealthCheckOptions();
     }
 
     internal sealed class AzureOpenAIModelDeploymentsDiscoveryWorker(
