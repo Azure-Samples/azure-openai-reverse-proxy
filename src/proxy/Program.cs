@@ -13,7 +13,7 @@ proxyBuilder.AddTransforms(AbsoluteUriResponseTransformer.Transform);
 
 IConfigurationSection modelDeploymentsDiscovery = builder.Configuration.GetSection("ModelDeploymentsDiscovery");
 
-if (modelDeploymentsDiscovery != null)
+if (modelDeploymentsDiscovery.Exists())
 {
     _ = builder.Services.AddSingleton<RouteUpdateChannelProvider>();
     _ = builder.Services.AddHostedService<RouteUpdateWorker>();
