@@ -14,6 +14,8 @@ A [reverse proxy](https://en.wikipedia.org/wiki/Reverse_proxy) for distributing 
   - [Core features](#core-features)
   - [Passive Health Check](#passive-health-check)
   - [Metrics](#metrics)
+  - [Use Cases](#use-cases)
+  - [Limitations](#limitations)
 - [Trying it out](#trying-it-out)
   - [Prerequisites](#prerequisites)
   - [Proxy configuration options](#proxy-configuration-options)
@@ -65,6 +67,18 @@ This repository showcases a proof-of-concept solution for the alternative #2: A 
 ### Metrics
 
 > WIP
+
+### Use Cases
+
+The reverse proxy can be used as:
+
+1. A gateway to serve as an entrypoint for one or more LLM apps;
+2. A [sidecar](https://learn.microsoft.com/en-us/azure/architecture/patterns/sidecar) app to run alongside an LLM app (e.g. in a Kubernetes environment such as Azure Kubernetes Service or Azure Container Apps).
+
+### Limitations
+
+- The solution currently supports only 1 Azure OpenAI Service resource with multiple model deployments.
+- Currently there's no concept of priority groups of weights to model deployments (e.g. prioritizing PTU-based deployments).
 
 ## Trying it out
 
@@ -179,11 +193,12 @@ The repository provides the following ways of sending HTTP requests to Azure Ope
    ```
    ./scripts/client.sh
    ```
-    or via powershell
 
-    ```
-    .\scripts\client.ps1
-    ```
+   or via powershell
+
+   ```
+   .\scripts\client.ps1
+   ```
 
 2. Concurrent requests via `k6`, a load testing tool:
 
