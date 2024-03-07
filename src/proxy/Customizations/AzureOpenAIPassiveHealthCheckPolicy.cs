@@ -4,20 +4,20 @@ using Yarp.ReverseProxy.Model;
 
 namespace Proxy.Customizations
 {
-    public class AzureOpenAIPassiveHealthCheckPolicy(
+    public sealed class AzureOpenAIPassiveHealthCheckPolicy(
         IDestinationHealthUpdater healthUpdater,
         ILogger<AzureOpenAIPassiveHealthCheckPolicy> logger) : IPassiveHealthCheckPolicy
     {
-        public string Name => nameof(AzureOpenAIPassiveHealthCheckPolicy);
+        public const string PolicyName = nameof(AzureOpenAIPassiveHealthCheckPolicy);
+        public string Name => PolicyName;
         public const string HttpClientName = nameof(AzureOpenAIPassiveHealthCheckPolicy);
 
         private static readonly TimeSpan _defaultReactivationPeriod = TimeSpan.FromSeconds(6);
 
         public void RequestProxied(HttpContext context, ClusterState cluster, DestinationState destination)
         {
-            TimeSpan reactivationPeriod = GetReactivationPeriod(context.Response.Headers);
-
             DestinationHealth newHealthState = GetDestinationHealthState(context.Response, cluster.Model.Config.Metadata);
+            TimeSpan reactivationPeriod = GetReactivationPeriod(context.Response.Headers);
 
             healthUpdater.SetPassive(cluster, destination, newHealthState, reactivationPeriod);
         }
@@ -66,7 +66,8 @@ namespace Proxy.Customizations
         private static bool ClusterHasMetadata(IReadOnlyDictionary<string, string>? clusterMetadata)
         {
             return clusterMetadata != null
-              && (clusterMetadata.ContainsKey("RemainingRequestsThreshold") || clusterMetadata.ContainsKey("remainingTokensThreshold"));
+              && (clusterMetadata.ContainsKey("RemainingRequestsThreshold")
+                  || clusterMetadata.ContainsKey("remainingTokensThreshold"));
         }
 
         private static (int, int) GetThresholdsFromMetadata(IReadOnlyDictionary<string, string>? clusterMetadata)

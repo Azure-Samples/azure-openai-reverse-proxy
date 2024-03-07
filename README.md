@@ -13,9 +13,12 @@ A [reverse proxy](https://en.wikipedia.org/wiki/Reverse_proxy) for distributing 
 - [Solution](#solution)
   - [Core features](#core-features)
   - [Passive Health Check](#passive-health-check)
-- [Proxy configuration](#proxy-configuration)
+  - [Metrics](#metrics)
 - [Trying it out](#trying-it-out)
   - [Prerequisites](#prerequisites)
+  - [Proxy configuration options](#proxy-configuration-options)
+    - [YARP-based configuration](#yarp-based-configuration)
+    - [Model deployments discovery configuration](#model-deployments-discovery-configuration)
   - [App settings setup](#app-settings-setup)
   - [Running the solution](#running-the-solution)
   - [Testing the proxy](#testing-the-proxy)
@@ -53,11 +56,13 @@ This repository showcases a proof-of-concept solution for the alternative #2: A 
 
 * Custom [passive health check](https://microsoft.github.io/reverse-proxy/articles/dests-health-checks.html#passive-health-checks) to reactively evaluate and assign states for Azure OpenAI model deployments. For more info, check out the [Passive Health Check](#passive-health-check) section.
 
+* Built-in custom Prometheus metrics to measure and collect insights on how the reverse proxy is performing on distributing the requests. For more info, see the [Metrics](#metrics) section.
+
 ### Passive Health Check
 
 > WIP
 
-## Proxy configuration
+### Metrics
 
 > WIP
 
@@ -72,31 +77,89 @@ The repository provides the following containerized services out of the box to s
 - An Azure OpenAI Service with 2 or more model deployments. For more information about model deployment, see the [resource deployment guide](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/create-resource?pivots=web-portal).
 - [Docker](https://docs.docker.com/get-docker/), or [Podman](https://podman.io/docs/installation) with [podman-compose](https://github.com/containers/podman-compose).
 
-### App settings setup
+### Proxy configuration options
 
-1. First, create an `appsettings.Local.json` file on `src/proxy` from the provided template file `appsettings.Template.json` and change the values to match your Azure OpenAI model deployments:
+Create an `appsettings.Local.json` file on `src/proxy` directory to start the proxy configuration for your local environment. There are two options to configure the load balancer and passive health check:
+
+1. Using YARP's built-in [ReverseProxy](https://microsoft.github.io/reverse-proxy/articles/config-files.html#configuration-structure) config section to manually set the route and cluster. Check out the [YARP-based configuration](#yarp-based-configuration) section for a config sample.
+
+2. Using a `ModelDeploymentsDiscovery` config section to dynamically discover model deployments on the Azure OpenAI resource tailored to your filter pattern (e.g. discovering only GPT 3.5 deployments via `gpt-35*` pattern) and create the route and cluster properties. Check out the [Model deployments discovery configuration] section for a config sample.
+
+#### YARP-based configuration
 
 ```
-"Destinations": {
-    "deployment1": {
-      "Address": "https://account-name.openai.azure.com/openai/deployments/deployment-1"
+{
+  "ReverseProxy": {
+    "Routes": {
+      "route1": {
+        "ClusterId": "cluster1",
+        "Match": {
+          "Path": "{**catch-all}"
+        }
+      }
     },
-    "deployment2": {
-      "Address": "https:///account-name.openai.azure.com/openai/deployments/deployment-2"
+    "Clusters": {
+      "cluster1": {
+        "LoadBalancingPolicy": "RoundRobin",
+        "HealthCheck": {
+          "Passive": {
+            "Enabled": "true",
+            "Policy": "AzureOpenAIPassiveHealthCheckPolicy",
+          }
+        },
+        "Metadata": {
+          "RemainingRequestsThreshold": "100",
+          "RemainingTokensThreshold": "1000"
+        },
+        "Destinations": {
+          "deployment1": {
+            "Address": "https://my-account.openai.azure.com/openai/deployments/deployment-1"
+          },
+          "deployment2": {
+            "Address": "https://my-account.openai.azure.com/openai/deployments/deployment-2"
+          }
+        }
+      }
     }
   }
 }
 ```
 
-2. Create a `.env` file on the root directory and add the Azure OpenAI API key:
+#### Model deployments discovery configuration
 
-   ```
-   AZURE_OPENAI_API_KEY=<api-key>
-   ```
+```
+{
+  "ModelDeploymentsDiscovery": {
+    "SubscriptionId": "<subscription id>",
+    "ResourceGroupName": "<resource group name",
+    "AccountId": "<azure openai account name>",
 
-   > The `PROXY_ENDPOINT` environment variable is set by default on the `compose.yml` file.
+    "FilterPattern": "gpt-35*",
+    "FrequencySeconds": 5,
 
-### Running the solution
+    "LoadBalancingPolicy": "RoundRobin",
+    "PassiveHealthCheck": {
+      "Policy": "AzureOpenAIPassiveHealthCheckPolicy",
+      "Metadata": {
+        "RemainingRequestsThreshold": "100",
+        "RemainingTokensThreshold": "1000"
+      }
+    }
+  }
+}
+```
+
+### App settings setup
+
+Create a `.env` file on the root directory and add the Azure OpenAI API key:
+
+```
+AZURE_OPENAI_API_KEY=<api-key>
+```
+
+> The `PROXY_ENDPOINT` environment variable is set by default on the `compose.yml` file.
+
+### Running the reverse proxy
 
 Spin services up with Docker compose:
 
