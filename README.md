@@ -54,11 +54,11 @@ This repository showcases a proof-of-concept solution for the alternative #2: A 
 
 ### Core features
 
-- YARP's built-in [load balancing algorithms](https://microsoft.github.io/reverse-proxy/articles/load-balancing.html#built-in-policies).
+- Support YARP's built-in [load balancing algorithms](https://microsoft.github.io/reverse-proxy/articles/load-balancing.html#built-in-policies).
 
-* Custom [passive health check](https://microsoft.github.io/reverse-proxy/articles/dests-health-checks.html#passive-health-checks) to reactively evaluate and assign states for Azure OpenAI model deployments. For more info, check out the [Passive Health Check](#passive-health-check) section.
+* [Passive Health Check](https://microsoft.github.io/reverse-proxy/articles/dests-health-checks.html#passive-health-checks) middleware that intercepts HTTP responses from model deployments and assign health states. For more info, check out the [Passive Health Check](#passive-health-check) section.
 
-* Built-in custom Prometheus metrics to measure and collect insights on how the reverse proxy is performing on distributing the requests. For more info, see the [Metrics](#metrics) section.
+* Custom [OpenTelemetry](https://opentelemetry.io/) metrics to help developers to get insights about how the proxy is performing the requests distribution. For more info, see the [Metrics](#metrics) section.
 
 ### Passive Health Check
 
@@ -66,7 +66,16 @@ This repository showcases a proof-of-concept solution for the alternative #2: A 
 
 ### Metrics
 
-> WIP
+The proxy provides custom metrics compliant to [OpenTelemetry](https://opentelemetry.io/), giving the flexibility to easily integrate it with many monitoring solutions with minimal effort (e.g. Azure Monitor, Prometheus).
+
+These are the custom metrics the proxy emits:
+
+| Metric name                                    | Type                                                                                                                | Description                    | Attributes (dimensions)                                    |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------ | ---------------------------------------------------------- |
+| `reverseproxy_azure_openai_remaining_requests` | [Gauge](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md#gauge) | Remaining HTTP requests.       | <ul><li>`account_name`</li><li>`deployment_name`</li></ul> |
+| `reverseproxy_azure_openai_remaining_tokens`   | [Gauge](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md#gauge) | Remaining Azure OpenAI tokens. | <ul><li>`account_name`</li><li>`deployment_name`</li></ul> |
+
+These metrics may help have a better understanding on how the requests are being distributed among model deployments and run experiments to establish a better configuration that fits your needs (e.g. switching load balancing algorithms, adjusting thresholds, customizing health check policies).
 
 ### Use Cases
 
