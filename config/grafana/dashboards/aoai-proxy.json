@@ -38,10 +38,6 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           },
@@ -57,20 +53,17 @@
       },
       "id": 3,
       "options": {
-        "displayMode": "gradient",
-        "maxVizHeight": 300,
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "namePlacement": "auto",
+        "minVizHeight": 75,
+        "minVizWidth": 75,
         "orientation": "auto",
         "reduceOptions": {
           "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
-        "showUnfilled": true,
-        "sizing": "auto",
-        "valueMode": "color"
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "sizing": "auto"
       },
       "pluginVersion": "10.3.1",
       "targets": [
@@ -81,7 +74,7 @@
           },
           "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "azure_openai_remaining_tokens",
+          "expr": "reverseproxy_azure_openai_remaining_tokens",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,
@@ -92,7 +85,7 @@
         }
       ],
       "title": "Remaining tokens",
-      "type": "bargauge"
+      "type": "gauge"
     },
     {
       "datasource": {
@@ -147,7 +140,7 @@
           },
           "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "azure_openai_remaining_requests",
+          "expr": "reverseproxy_azure_openai_remaining_requests",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,
@@ -319,7 +312,7 @@
           },
           "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "azure_openai_remaining_requests",
+          "expr": "reverseproxy_azure_openai_remaining_requests",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,
@@ -419,7 +412,7 @@
           },
           "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "azure_openai_remaining_tokens",
+          "expr": "reverseproxy_azure_openai_remaining_tokens",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,
