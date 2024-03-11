@@ -53,6 +53,34 @@ These approaches can be combined to achieve enhanced scalability, performance an
 
 This repository showcases a proof-of-concept solution for the alternative #2: A reverse proxy built in ASP.NET Core with [YARP](https://microsoft.github.io/reverse-proxy/articles/getting-started.html).
 
+```mermaid
+sequenceDiagram
+    Client->>Load Balancer: Proxy HTTP request<br/> with OpenAI API route
+
+    box Gray Reverse Proxy
+    participant Load Balancer
+    participant HTTP Forwarder
+    participant Passive Health Check
+    participant Transformer
+    participant Custom Metrics Publisher
+    end
+
+    Load Balancer->>HTTP Forwarder: Selected<br/> deployment destination
+
+    par
+      HTTP Forwarder->>Passive Health Check: HTTP response
+      Note over Passive Health Check: Evaluate response + assign<br/> new destination health state
+    and
+      HTTP Forwarder->>Transformer: HTTP response
+      Note over Transformer: Append x-absolute-uri response header<br /> with the destination address
+      Transformer->>Client: HTTP response
+    and
+      HTTP Forwarder->>Custom Metrics Publisher: HTTP response
+      Note over Custom Metrics Publisher: Remaining requests + tokens
+    end
+
+```
+
 ### Core features
 
 - Support YARP's built-in [load balancing algorithms](https://microsoft.github.io/reverse-proxy/articles/load-balancing.html#built-in-policies).
