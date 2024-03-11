@@ -21,6 +21,7 @@ A [reverse proxy](https://en.wikipedia.org/wiki/Reverse_proxy) for distributing 
   - [Proxy configuration options](#proxy-configuration-options)
     - [YARP-based configuration](#yarp-based-configuration)
     - [Model deployments discovery configuration](#model-deployments-discovery-configuration)
+    - [OpenTelemetry exporters configuration](#opentelemetry-exporters-configuration)
   - [App settings setup](#app-settings-setup)
   - [Running the solution](#running-the-solution)
   - [Testing the proxy](#testing-the-proxy)
@@ -56,9 +57,9 @@ This repository showcases a proof-of-concept solution for the alternative #2: A 
 
 - Support YARP's built-in [load balancing algorithms](https://microsoft.github.io/reverse-proxy/articles/load-balancing.html#built-in-policies).
 
-* [Passive Health Check](https://microsoft.github.io/reverse-proxy/articles/dests-health-checks.html#passive-health-checks) middleware that intercepts HTTP responses from model deployments and assign health states. For more info, check out the [Passive Health Check](#passive-health-check) section.
+* Custom [Passive Health Check](https://microsoft.github.io/reverse-proxy/articles/dests-health-checks.html#passive-health-checks) middleware that intercepts HTTP responses from model deployments selected by the load balancer, and assign health states. For more info, see the [Passive Health Check](#passive-health-check) section.
 
-* Custom [OpenTelemetry](https://opentelemetry.io/) metrics to help developers to get insights about how the proxy is performing the requests distribution. For more info, see the [Metrics](#metrics) section.
+* Custom [OpenTelemetry](https://opentelemetry.io/) metrics with built-in support for [Prometheus](https://prometheus.io/) and [Azure Monitor](https://learn.microsoft.com/en-us/azure/azure-monitor/overview) exporters to help getting insights about how the proxy is performing the requests distribution. For more info, see the [Metrics](#metrics) section.
 
 ### Passive Health Check
 
@@ -110,7 +111,7 @@ Create an `appsettings.Local.json` file on `src/proxy` directory to start the pr
 
 #### YARP-based configuration
 
-```
+```json
 {
   "ReverseProxy": {
     "Routes": {
@@ -127,7 +128,7 @@ Create an `appsettings.Local.json` file on `src/proxy` directory to start the pr
         "HealthCheck": {
           "Passive": {
             "Enabled": "true",
-            "Policy": "AzureOpenAIPassiveHealthCheckPolicy",
+            "Policy": "AzureOpenAIPassiveHealthCheckPolicy"
           }
         },
         "Metadata": {
@@ -150,7 +151,7 @@ Create an `appsettings.Local.json` file on `src/proxy` directory to start the pr
 
 #### Model deployments discovery configuration
 
-```
+```json
 {
   "ModelDeploymentsDiscovery": {
     "SubscriptionId": "<subscription id>",
@@ -168,6 +169,19 @@ Create an `appsettings.Local.json` file on `src/proxy` directory to start the pr
         "RemainingTokensThreshold": "1000"
       }
     }
+  }
+}
+```
+
+#### OpenTelemetry exporters configuration
+
+The proxy is configured by default to export custom metrics to Prometheus via `/metrics` HTTP route. If you want to export metrics to Azure Monitor, add the following `ApplicationInsights` section on the app settings:
+
+```json
+{
+  ...,
+  "ApplicationInsights": {
+    "ConnectionString": "<app-insights-connection-string"
   }
 }
 ```
