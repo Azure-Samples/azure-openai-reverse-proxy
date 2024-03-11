@@ -103,7 +103,6 @@ namespace Proxy.Telemetry
                     });
             }
 
-            // TODO: Prometheus validation
             _ = openTelemetryBuilder.WithMetrics(metrics => ConfigureMeter(metrics));
 
             // Configure OpenTelemetry Resources with the application name
@@ -111,7 +110,6 @@ namespace Proxy.Telemetry
                 .AddService(serviceName: builder.Environment.ApplicationName));
 
             _ = builder.Services.AddOpenTelemetryServices();
-
 
             // Expose /metrics route for Prometheus
             _ = builder.Services.UseHttpClientMetrics();
