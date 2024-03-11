@@ -1,5 +1,9 @@
 ﻿using System.Diagnostics.Metrics;
+using Azure.Monitor.OpenTelemetry.AspNetCore;
 using Microsoft.Extensions.Caching.Memory;
+using OpenTelemetry;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
 using Prometheus;
 using Proxy.OpenAI;
 using Proxy.Transformers;
@@ -85,12 +89,46 @@ namespace Proxy.Telemetry
 
     public static class MetricsPublisherMiddlewareExtensions
     {
+        public static WebApplicationBuilder AddOpenTelemetryBuilder(this WebApplicationBuilder builder)
+        {
+            OpenTelemetryBuilder openTelemetryBuilder = builder.Services.AddOpenTelemetry();
+
+            IConfigurationSection appInsightsSection = builder.Configuration.GetSection("ApplicationInsights");
+
+            if (appInsightsSection.Exists())
+            {
+                _ = openTelemetryBuilder.UseAzureMonitor(options =>
+                    {
+                        options.ConnectionString = appInsightsSection["ConnectionString"];
+                    });
+            }
+
+            _ = openTelemetryBuilder.WithMetrics(metrics => ConfigureMeter(metrics));
+
+            // Configure OpenTelemetry Resources with the application name
+            _ = openTelemetryBuilder.ConfigureResource(resource => resource
+                .AddService(serviceName: builder.Environment.ApplicationName));
+
+            _ = builder.Services.AddOpenTelemetryServices();
+
+            // Expose /metrics route for Prometheus
+            _ = builder.Services.UseHttpClientMetrics();
+
+            return builder;
+        }
+
+        private static void ConfigureMeter(MeterProviderBuilder builder)
+        {
+            _ = builder.AddMeter("ReverseProxy");
+            _ = builder.AddPrometheusExporter();
+        }
+
         public static IServiceCollection AddOpenTelemetryServices(this IServiceCollection services)
         {
             return services.AddMemoryCache();
         }
 
-        public static IApplicationBuilder UsePrometheusMetrics(this WebApplication app)
+        public static IApplicationBuilder UseCustomMetrics(this WebApplication app)
         {
             // Add middleware to handle scraping requests for metrics
             _ = app.UseHttpMetrics();

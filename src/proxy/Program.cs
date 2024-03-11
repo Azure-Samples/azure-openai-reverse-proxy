@@ -1,7 +1,3 @@
-using OpenTelemetry;
-using OpenTelemetry.Metrics;
-using OpenTelemetry.Resources;
-using Prometheus;
 using Proxy.Customizations;
 using Proxy.ServiceDiscovery;
 using Proxy.ServiceDiscovery.RouteUpdates;
@@ -31,30 +27,14 @@ else
 }
 
 builder.Services.AddSingleton<IPassiveHealthCheckPolicy, AzureOpenAIPassiveHealthCheckPolicy>();
-
-// Define an HTTP client that reports metrics about its usage
 builder.Services.AddHttpClient(AzureOpenAIPassiveHealthCheckPolicy.HttpClientName);
 
-OpenTelemetryBuilder openTelemetry = builder.Services.AddOpenTelemetry();
-
-// Add Metrics for ASP.NET Core and our custom metrics and export to Prometheus
-openTelemetry.WithMetrics(metrics => metrics
-    .AddMeter("ReverseProxy")
-    .AddPrometheusExporter());
-
-// Configure OpenTelemetry Resources with the application name
-openTelemetry.ConfigureResource(resource => resource
-    .AddService(serviceName: builder.Environment.ApplicationName));
-
+builder.AddOpenTelemetryBuilder();
 // Export metrics from all HTTP clients registered in services
-builder.Services.UseHttpClientMetrics();
 
-builder.Services.AddOpenTelemetryServices();
 
 WebApplication app = builder.Build();
 
 app.MapReverseProxy();
-
-app.UsePrometheusMetrics();
-
+app.UseCustomMetrics();
 app.Run();
