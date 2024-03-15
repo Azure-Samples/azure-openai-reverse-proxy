@@ -93,6 +93,7 @@ sequenceDiagram
 ### Passive Health Check
 
 The following diagram gives a state management overview and the logic implemented on the `AzureOpenAIPassiveHealthCheckPolicy` middleware.
+
 ```mermaid
 stateDiagram-v2
     state if_state <<choice>>
@@ -130,8 +131,8 @@ The reverse proxy can be used as:
 
 ### Limitations
 
-- The solution currently supports only 1 Azure OpenAI Service resource with multiple model deployments.
-- Currently there's no concept of priority groups of weights to model deployments (e.g. prioritizing PTU-based deployments).
+- Resiliency: Currently, when a model deployment request fails (i.e. HTTP response an error status code), the proxy returns the failed request as is to the client.
+- Deployments priority: Currently there's no concept of priority groups of weights to model deployments (e.g. prioritizing PTU-based deployments).
 
 ## Trying it out
 
