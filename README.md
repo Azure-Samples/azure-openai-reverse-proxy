@@ -55,12 +55,13 @@ This repository showcases a proof-of-concept solution for the alternative #2: A 
 
 ```mermaid
 sequenceDiagram
-    Client->>Load Balancer: Proxy HTTP request<br/> with OpenAI API route
+    Client->>Load Balancer: Proxy HTTP request<br/> /<azure-openai-route><br/><azure-openai-credentials>
 
     box Gray Reverse Proxy
     participant Load Balancer
     participant HTTP Forwarder
     participant Passive Health Check
+    participant Destination Health Updater
     participant Transformer
     participant Custom Metrics Publisher
     end
@@ -69,7 +70,8 @@ sequenceDiagram
 
     par
       HTTP Forwarder->>Passive Health Check: HTTP response
-      Note over Passive Health Check: Evaluate response + assign<br/> new destination health state
+      Note over Passive Health Check: Evaluate response and mark destination<br/> health state as healthy or unhealthy
+      Passive Health Check ->> Destination Health Updater: Update destination state
     and
       HTTP Forwarder->>Transformer: HTTP response
       Note over Transformer: Append x-absolute-uri response header<br /> with the destination address
@@ -78,7 +80,6 @@ sequenceDiagram
       HTTP Forwarder->>Custom Metrics Publisher: HTTP response
       Note over Custom Metrics Publisher: Remaining requests + tokens
     end
-
 ```
 
 ### Core features
@@ -91,7 +92,22 @@ sequenceDiagram
 
 ### Passive Health Check
 
-> WIP
+The following diagram gives a state management overview and the logic implemented on the `AzureOpenAIPassiveHealthCheckPolicy` middleware.
+
+```mermaid
+stateDiagram-v2
+    state if_state <<choice>>
+    [*] --> AzureOpenAIPassiveHealthCheckPolicy
+    AzureOpenAIPassiveHealthCheckPolicy --> if_state
+    if_state --> Unhealthy: if HTTP status code<br/> >= 400 and <= 599
+    if_state --> Unhealthy: if tokens or requests<br/> threshold is reached (optional)
+    Unhealthy --> Unknown
+    note right of Unknown
+      On hold for X seconds<br/> from Retry-After header value
+    end note
+    Unknown --> Healthy
+    if_state --> Healthy : else
+```
 
 ### Metrics
 
@@ -115,8 +131,8 @@ The reverse proxy can be used as:
 
 ### Limitations
 
-- The solution currently supports only 1 Azure OpenAI Service resource with multiple model deployments.
-- Currently there's no concept of priority groups of weights to model deployments (e.g. prioritizing PTU-based deployments).
+- Resiliency: Currently, when a model deployment request fails (i.e. HTTP response an error status code), the proxy returns the failed request as is to the client.
+- Deployments priority: Currently there's no concept of priority groups of weights to model deployments (e.g. prioritizing PTU-based deployments).
 
 ## Trying it out
 
